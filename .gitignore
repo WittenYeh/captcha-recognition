@@ -1,0 +1,5 @@
+/dataset/**/*.png
+/dataset/**/*.pt
+/model_weight/**/*.pth
+/model_weight/checkpoints/**/*.pth
+/**/__pycache__

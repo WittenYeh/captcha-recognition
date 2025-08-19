@@ -1,0 +1,32 @@
+import torch.nn as nn
+import torch
+from torchvision.models import vgg16
+from model_config import BaseConfig
+from recognizer_model import RecognizerModel
+from typing_extensions import override
+
+class VGGModel(RecognizerModel):
+    def __init__(self, model_config: BaseConfig):
+        super().__init__(model_config)
+        
+        # Load the pretrained VGG16 model with batch normalization
+        self.vgg = vgg16(weights=None)
+        
+        # --- Adapt the first convolutional layer for 1-channel (grayscale) input ---
+        # Get the original weights from the first conv layer in the features module
+        original_conv1_weights = self.vgg.features[0].weight.data
+        
+        # Create a new conv layer with 1 input channel
+        self.vgg.features[0] = nn.Conv2d(1, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        
+        # Average the weights of the original 3 channels and assign to the new layer
+        self.vgg.features[0].weight.data = torch.mean(original_conv1_weights, dim=1, keepdim=True)
+
+        # --- Replace the final fully connected layer in the classifier ---
+        num_ftrs = self.vgg.classifier[6].in_features
+        output_size = model_config.max_captcha * model_config.char_set_len
+        self.vgg.classifier[6] = nn.Linear(num_ftrs, output_size)
+
+    @override
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.vgg(x)
